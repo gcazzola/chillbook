@@ -146,12 +146,10 @@ class App:
 
     def save_settings(self, body: dict) -> dict:
         cur = self.settings()
-        for p, v in (body.get("prices") or {}).items():
-            if p in ("elevenlabs", "google"):
-                if v in (None, ""):
-                    cur["prices"].pop(p, None)
-                elif isinstance(v, (int, float)) and not isinstance(v, bool) and 0 <= v <= 10000:
-                    cur["prices"][p] = v
+        prices = body.get("prices")
+        if isinstance(prices, dict):  # the page sends every price it has, so one it left out was cleared
+            cur["prices"] = {p: v for p, v in prices.items() if p in ("elevenlabs", "google")
+                             and isinstance(v, (int, float)) and not isinstance(v, bool) and 0 <= v <= 10000}
         choice = body.get("choice")
         if isinstance(choice, dict):  # plain values only, bounded
             cur["choice"] = {k: v for k, v in choice.items() if isinstance(k, str) and len(k) < 40

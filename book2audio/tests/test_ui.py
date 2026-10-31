@@ -253,6 +253,13 @@ class Choices(Server):
         self.assertEqual(saved, {"prices": {"google": 0.03}, "choice": {"engine": "google"}})
         self.assertEqual(self.api("POST", "/api/settings", {"prices": {"google": None}})[1]["prices"], {})
 
+    def test_a_cleared_price_stays_cleared_after_a_reload(self):
+        self.api("POST", "/api/settings", {"prices": {"google": 0.03, "elevenlabs": 0.3}})
+        self.api("POST", "/api/settings", {"prices": {"google": 0.03}})  # the page sends what is left
+        self.assertEqual(self.api("GET", "/api/state")[1]["settings"]["prices"], {"google": 0.03})
+        self.api("POST", "/api/settings", {"choice": {"engine": "google"}})  # no prices sent: none are touched
+        self.assertEqual(self.api("GET", "/api/state")[1]["settings"]["prices"], {"google": 0.03})
+
 
 class Estimates(Server):
     def test_free_voice_stays_on_this_computer_and_costs_nothing(self):
