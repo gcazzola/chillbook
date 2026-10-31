@@ -282,6 +282,22 @@ class Estimates(Server):
                                                             "claude": {**claude, "model": "gpt"}})[0], 400)
 
 
+class VoiceCostCeiling(Server):
+    def test_the_page_gets_a_ceiling_for_the_voice_when_claude_rewrites_the_text(self):
+        book = self.small_book()
+        req = {**self.request(book, "google"), "price_per_1k": 0.03}
+        plain = self.api("POST", "/api/estimate", req)[1]
+        self.assertEqual((plain["growth"], plain["units_max"], plain["total_money_max"]), (1.0, plain["units"], plain["total_money"]))
+        claude = {"on": True, "mode": "adapted", "model": "claude-haiku-5-5", "condense": False}
+        est = self.api("POST", "/api/estimate", {**req, "claude": claude})[1]
+        self.assertEqual(est["growth"], 2.0)
+        self.assertAlmostEqual(est["units_max"], 2 * est["units"])
+        self.assertAlmostEqual(est["voice_money_max"], 2 * est["voice_money"])
+        self.assertAlmostEqual(est["total_money_max"], est["voice_money_max"] + est["claude"]["usd"])
+        self.assertGreater(est["total_money_max"], est["total_money"])
+        self.assertNotEqual(est["quote"], plain["quote"], "the quote covers the Claude options")
+
+
 @unittest.skipUnless(HAVE_FFMPEG, "ffmpeg/ffprobe not on PATH")
 class Samples(Server):
     def test_a_free_sample_plays_and_costs_nothing(self):

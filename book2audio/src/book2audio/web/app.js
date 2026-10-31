@@ -406,11 +406,14 @@ function summaryCard(e) {
   if (e.cached_chars) rows.push(['Already made earlier', `${Math.round(100 * e.cached_chars / Math.max(1, e.cached_chars + e.todo_chars))}%`]);
   const cost = [];
   if (!e.paid) cost.push('Free');
+  const grows = e.voice_paid && e.growth > 1;  // the voice reads Claude's version of the text, which can be longer
   if (e.voice_paid) cost.push(`${fmt(e.units)} ${e.unit}` + (e.voice_money != null ? ` ≈ ${money(e.voice_money)}` : ''));
+  if (grows) cost.push(`at most ${fmt(e.units_max)} ${e.unit}` + (e.voice_money_max != null ? ` ≈ ${money(e.voice_money_max)}` : ''));
   if (e.claude) cost.push('Claude: ' + (e.claude.usd != null ? `about ${money(e.claude.usd)}` : 'price not known'));
   rows.push(['Cost', h('span', {}, ...cost.map((c) => h('div', {}, c)))]);
   const after = [];
-  if (e.paid && e.total_money != null) after.push(h('p', {}, h('strong', {}, `Total: about ${money(e.total_money)}`)));
+  if (e.paid && e.total_money != null) after.push(h('p', {}, h('strong', {}, `Total: about ${money(e.total_money)}` + (grows && e.total_money_max != null ? `, at most ${money(e.total_money_max)}` : ''))));
+  if (grows) after.push(h('p', {class: 'help'}, `The voice reads Claude's version of the text, which can be up to ${e.growth} times longer than your book, so the voice part can cost more than the first figure. The "at most" figure is the ceiling.`));
   if (e.sent_to.length) after.push(h('div', {class: 'notice'}, h('strong', {}, 'Your book\'s text will be sent to ' + e.sent_to.join(' and ') + '.')));
   return {card: [h('dl', {}, rows.flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, v)]))], after};
 }
@@ -469,12 +472,16 @@ function convertClicked() {
   if (!e.paid) return start();
   const dlg = $('confirm');
   const cost = [];
-  if (e.voice_paid) cost.push(`${fmt(e.units)} ${e.unit} of ${e.sent_to[0]}` + (e.voice_money != null ? ` (about ${money(e.voice_money)})` : ''));
+  const grows = e.voice_paid && e.growth > 1;
+  if (e.voice_paid) cost.push(`${grows ? 'up to ' + fmt(e.units_max) : fmt(e.units)} ${e.unit} of ${e.sent_to[0]}` + (grows
+    ? (e.voice_money_max != null ? ` (up to ${money(e.voice_money_max)})` : '')
+    : (e.voice_money != null ? ` (about ${money(e.voice_money)})` : '')));
   if (e.claude) cost.push('the Claude clean-up' + (e.claude.usd != null ? ` (about ${money(e.claude.usd)})` : ''));
   fill(dlg, h('h2', {id: 'confirm-title'}, 'Start and pay?'),
     h('p', {}, `Your book's text will be sent to ${e.sent_to.join(' and ')} over the internet.`),
     h('p', {}, 'This will use ', h('strong', {}, cost.join(' and ')), '.',
-      e.total_money != null ? h('span', {}, ' Total: ', h('strong', {}, `about ${money(e.total_money)}`), '.') : ' Enter your price in the summary to see it in dollars.'),
+      e.total_money != null ? h('span', {}, ' Total: ', h('strong', {}, grows && e.total_money_max != null ? `at most ${money(e.total_money_max)}` : `about ${money(e.total_money)}`), '.') : ' Enter your price in the summary to see it in dollars.'),
+    grows ? h('p', {class: 'help'}, `The voice reads Claude's version of the text, which can be up to ${e.growth} times longer than your book. The figure above is the most it can cost; it is often less.`) : null,
     e.cached_chars ? h('p', {class: 'help'}, 'Parts already made earlier are not paid for again.') : null,
     h('div', {class: 'row'}, h('button', {type: 'button', onclick: () => dlg.close()}, 'Not now'),
       h('button', {type: 'button', class: 'primary', onclick: () => { dlg.close(); start(); }}, 'Yes, convert my book')));

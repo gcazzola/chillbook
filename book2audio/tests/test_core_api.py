@@ -50,6 +50,39 @@ class Estimate(unittest.TestCase):
         self.assertGreater(est["claude"]["usd"], 0)
 
 
+class VoiceCostCeiling(unittest.TestCase):
+    """The voice reads the text after the Claude pass, which can be longer, so its cost is shown as a ceiling too."""
+
+    def estimates(self, claude):
+        with tempfile.TemporaryDirectory() as td:
+            epub = shutil.copy(FIXTURES / "alice.epub", Path(td) / "alice.epub")
+            job = pipeline.Job(Path(td) / "job", Path(epub))
+            book = pipeline.load_book(Path(epub), job)
+            picks, skipped = pipeline.select(book, "1-2")
+            prepared = pipeline.prepare(picks, job, save=False)
+            backend = tts.make_backend("elevenlabs")
+            est = estimate.compute(prepared, skipped, job, backend, llm_opts=claude, price_per_1k=0.30, every_backend=False)
+            report = estimate.report(book, prepared, skipped, job, backend, "alice.epub", claude, 0.30)
+        return est, est["backends"][0], report
+
+    def test_without_claude_the_ceiling_is_the_estimate(self):
+        est, b, report = self.estimates(None)
+        self.assertEqual((est["growth"], b["units_max"], b["money_max"]), (1.0, b["units"], b["money"]))
+        self.assertNotIn("times longer", report)
+
+    def test_a_rewrite_can_double_the_voice_bill_and_the_report_says_so(self):
+        est, b, report = self.estimates({"mode": "adapted", "model": "claude-haiku-5-5", "condense": False})
+        self.assertEqual(est["growth"], 2.0)
+        self.assertAlmostEqual(b["units_max"], 2 * b["units"])
+        self.assertAlmostEqual(b["money_max"], 2 * b["money"])
+        self.assertIn("up to 2 times longer", report)
+        self.assertIn(f"{b['units_max']:,.0f} credits", report)
+
+    def test_condensing_and_faithful_cleanup_grow_the_text_far_less(self):
+        self.assertEqual(self.estimates({"mode": "adapted", "model": "claude-haiku-5-5", "condense": True})[0]["growth"], 1.2)
+        self.assertEqual(self.estimates({"mode": "faithful", "model": "claude-haiku-5-5", "condense": False})[0]["growth"], 1.25)
+
+
 class KeysInMemory(unittest.TestCase):
     def test_a_typed_key_is_used_instead_of_the_environment(self):
         with mock.patch.dict("os.environ", {"ELEVENLABS_API_KEY": "from-env", "GOOGLE_TTS_API_KEY": "g-env"}):

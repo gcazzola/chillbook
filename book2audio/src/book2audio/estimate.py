@@ -25,6 +25,9 @@ def compute(prepared: list[Prepared], skipped, job: Job, backend: Backend, llm_o
             every_backend=True) -> dict:
     """-> chapters, per-backend work/time/cost, the Claude pass estimate and who receives the text."""
     total = sum(len(p.text) for p in prepared)
+    # The voice reads the text AFTER the Claude pass, which is not known until it has run and can be longer than
+    # `prepared`; `growth` is the most it can grow, so units_max and money_max are a ceiling for the voice bill.
+    growth = llm.max_growth(llm_opts["mode"], llm_opts["condense"]) if llm_opts else 1.0
     backends = []
     for name in (BACKENDS if every_backend else [backend.name]):
         b = backend if name == backend.name else make_backend(name)
@@ -34,7 +37,9 @@ def compute(prepared: list[Prepared], skipped, job: Job, backend: Backend, llm_o
         backends.append({"name": name, "selected": name == backend.name, "paid": b.paid, "unit": b.unit,
                          "todo_chars": todo, "cached_chars": sum(n for n, hit in sizes if hit),
                          "minutes": todo / SYNTH_CHARS_PER_MINUTE.get(name, 10000), "units": units,
-                         "money": units / 1000 * price_per_1k if b.paid and price_per_1k is not None else None})
+                         "units_max": units * growth,
+                         "money": units / 1000 * price_per_1k if b.paid and price_per_1k is not None else None,
+                         "money_max": units * growth / 1000 * price_per_1k if b.paid and price_per_1k is not None else None})
     claude = None
     if llm_opts:
         claude = {**llm.estimate(total, llm_opts["mode"], llm_opts["condense"], llm_opts["model"]),
@@ -44,7 +49,7 @@ def compute(prepared: list[Prepared], skipped, job: Job, backend: Backend, llm_o
                           "minutes": len(p.text) / CHARS_PER_AUDIO_MINUTE} for p in prepared],
             "skipped": [{"title": c.title, "reason": c.skip or "no text"} for c in skipped],
             "chars": total, "minutes": total / CHARS_PER_AUDIO_MINUTE, "price_per_1k": price_per_1k,
-            "backends": backends, "claude": claude, "sent_to": sent_to}
+            "growth": growth, "backends": backends, "claude": claude, "sent_to": sent_to}
 
 
 def report(book, prepared: list[Prepared], skipped, job: Job, backend: Backend, source_name: str,
@@ -78,8 +83,13 @@ def report(book, prepared: list[Prepared], skipped, job: Job, backend: Backend, 
         lines += ["", f"Claude pass ({e['mode']}, {e['model']}): {e['requests']} requests, about "
                       f"{e['tokens_in']:,} tokens in and {e['tokens_out']:,} out, {usd} (excludes thinking tokens; "
                       "only this estimate is shown now, the pass runs on the real run)."]
+        sel = next(b for b in est["backends"] if b["selected"])
+        if sel["paid"] and est["growth"] > 1:
+            ceiling = f"{sel['units_max']:,.0f} {sel['unit']}" + (f" = {sel['money_max']:,.2f}" if sel["money_max"] is not None else "")
+            lines += ["", f"The voice reads Claude's version of the text, which can be up to {est['growth']:g} times longer than "
+                          f"the numbers above assume: the voice may cost up to {ceiling}."]
 
-    sent = [f"{s} (cloud)" for s in est["sent_to"]]
+    sent =[f"{s} (cloud)" for s in est["sent_to"]]
     lines += ["", ("The text of this book will be sent to " + " and ".join(sent) + "." if sent
                    else "The text stays on this computer.")]
     return "\n".join(lines)

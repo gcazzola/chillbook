@@ -251,13 +251,17 @@ class App:
         claude_usd = est["claude"] and est["claude"]["usd"]
         total_money = None if (b["paid"] and b["money"] is None) or (est["claude"] and claude_usd is None) \
             else (b["money"] or 0) + (claude_usd or 0)
+        # What the voice may cost once the Claude pass has changed the text (see estimate.compute): a ceiling.
+        total_money_max = None if total_money is None else (b["money_max"] or 0) + (claude_usd or 0)
         self.selection = plan.idxs
         return {
             "engine": plan.engine, "voice": plan.backend.voice, "paid": b["paid"] or bool(plan.llm_opts),
             "sent_to": est["sent_to"], "chars": est["chars"], "audio_minutes": est["minutes"],
             "voice_minutes": b["minutes"], "todo_chars": b["todo_chars"], "cached_chars": b["cached_chars"],
             "units": b["units"], "unit": b["unit"], "voice_paid": b["paid"], "voice_money": b["money"],
-            "claude": est["claude"], "total_money": total_money, "chapters": est["chapters"],
+            "growth": est["growth"], "units_max": b["units_max"], "voice_money_max": b["money_max"],
+            "claude": est["claude"], "total_money": total_money, "total_money_max": total_money_max,
+            "chapters": est["chapters"],
             "missing_key": self.missing_key(plan),
             "quote": self.quote(plan.lb.id, plan.idxs, plan.engine, plan.backend.fingerprint(), b["todo_chars"],
                                 plan.price, plan.llm_opts and [plan.llm_opts[k] for k in ("mode", "model", "condense")]),
