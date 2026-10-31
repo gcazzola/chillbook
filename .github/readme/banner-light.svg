@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 360" width="1280" height="360" role="img" aria-labelledby="t">
+  <title id="t">chillbook: Turn an e-book into an audiobook, on your own computer.</title>
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6f5f1"/><stop offset="1" stop-color="#e6edfb"/></linearGradient></defs>
+  <rect x="1" y="1" width="1278" height="358" rx="28" fill="url(#g)" stroke="#dcdad2" stroke-width="2"/>
+  <g transform="translate(170 176)">
+    <path d="M0 -52C-26 -70 -78 -76 -116 -62V62C-78 50 -26 54 0 74Z" fill="#ffffff" stroke="#2f5fd0" stroke-width="7" stroke-linejoin="round"/>
+    <path d="M0 -52C26 -70 78 -76 116 -62V62C78 50 26 54 0 74Z" fill="#ffffff" stroke="#2f5fd0" stroke-width="7" stroke-linejoin="round"/>
+    <g fill="none" stroke="#5d6475" stroke-width="6" stroke-linecap="round" opacity=".55">
+      <path d="M-94 -28Q-58 -38 -26 -26"/><path d="M-94 -6Q-58 -16 -26 -4"/><path d="M-94 16Q-58 6 -26 18"/><path d="M-94 38Q-70 30 -50 34"/>
+    </g>
+    <g stroke="#2f5fd0" stroke-width="9" stroke-linecap="round">
+      <path d="M30 -4V16"/><path d="M48 -16V28"/><path d="M66 -26V38"/><path d="M84 -14V26"/><path d="M102 -4V16"/>
+    </g>
+  </g>
+  <text x="352" y="190" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="100" font-weight="700" letter-spacing="-2" fill="#1d2230">chillbook</text>
+  <text x="356" y="242" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="25" fill="#5d6475">Turn an e-book into an audiobook, on your own computer.</text>
+  <path d="M360 290V322M374 288V324M388 286V326M402 285V327M416 284V328M430 284V328M444 285V327M458 287V325M472 289V323M486 292V320M500 295V317M514 298V314M528 295V317M542 293V319M556 290V322M570 289V323M584 287V325M598 287V325M612 287V325M626 288V324M640 289V323M654 291V321M668 293V319M682 295V317M696 297V315M710 298V314M724 296V316M738 295V317M752 294V318M766 293V319M780 293V319M794 293V319M808 293V319M822 294V318M836 295V317M850 295V317M864 296V316M878 297V315M892 298V314M906 298V314M920 297V315M934 297V315M948 297V315M962 297V315M976 297V315M990 297V315M1004 297V315M1018 297V315M1032 297V315M1046 297V315M1060 298V314M1074 298V314M1088 298V314M1102 298V314M1116 297V315M1130 297V315M1144 296V316M1158 296V316M1172 295V317M1186 295V317M1200 295V317M1214 295V317" stroke="#2f5fd0" stroke-width="7" stroke-linecap="round" opacity=".45" fill="none"/>
+</svg>
