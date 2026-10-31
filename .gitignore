@@ -1,3 +1,10 @@
 __pycache__/
 *.pyc
 claudemy-workspace/
+.venv/
+*.egg-info/
+build/
+*.m4b
+*.b2a/
+chirp3-*.mp3
+eleven-sample.mp3
