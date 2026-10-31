@@ -8,3 +8,6 @@ build/
 *.b2a/
 chirp3-*.mp3
 eleven-sample.mp3
+
+# Local working notes: they hold paths from this computer, so they stay out of git
+/STATE.md
