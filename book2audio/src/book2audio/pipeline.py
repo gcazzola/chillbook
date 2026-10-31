@@ -167,6 +167,7 @@ def synthesize(prepared: list[Prepared], backend: Backend, job: Job, log=log, pr
 def convert(book: Book, picks, backend: Backend, job: Job, out: Path, llm_opts=None, log=log, progress=None,
             cancel=None) -> float:
     """The whole run: text, voice, chapters, then the .m4b at `out`. -> its length in seconds."""
+    Path(out).parent.mkdir(parents=True, exist_ok=True)  # now, not after the voice work is paid for
     prepared = prepare(picks, job, llm_opts, log, progress, cancel)
     files = synthesize(prepared, backend, job, log, progress, cancel)
     _check(cancel)

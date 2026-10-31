@@ -84,15 +84,38 @@ def build_m4b(chapter_files, titles, out: Path, title, author, cover=None, cover
     meta_path, listing = work / "chapters.ffmeta", work / "m4b-list.txt"
     meta_path.write_text("\n".join(meta) + "\n", encoding="utf-8")
     _concat_list(chapter_files, listing)
-    cmd = ["ffmpeg", "-nostdin", "-hide_banner", "-y", "-f", "concat", "-safe", "0", "-i", str(listing),
-           "-i", str(meta_path)]
-    maps = ["-map", "0:a"]
-    if cover:
-        cover_path = work / f"cover.{cover_ext}"
-        cover_path.write_bytes(cover)
-        cmd += ["-i", str(cover_path)]
-        maps += ["-map", "2:v", "-disposition:v:0", "attached_pic"]
     tmp = out.with_name(out.stem + ".part.m4b")
-    _run(cmd + maps + ["-map_metadata", "1", "-map_chapters", "1", "-c", "copy", "-f", "ipod", str(tmp)])
+
+    def mux(cover_path):
+        cmd = ["ffmpeg", "-nostdin", "-hide_banner", "-y", "-f", "concat", "-safe", "0", "-i", str(listing),
+               "-i", str(meta_path)]
+        maps = ["-map", "0:a"]
+        if cover_path:
+            cmd += ["-i", str(cover_path)]
+            maps += ["-map", "2:v", "-disposition:v:0", "attached_pic"]
+        _run(cmd + maps + ["-map_metadata", "1", "-map_chapters", "1", "-c", "copy", "-f", "ipod", str(tmp)])
+
+    cover_path = _cover_file(cover, cover_ext, work) if cover else None
+    try:
+        mux(cover_path)
+    except B2AError:
+        if not cover_path:
+            raise
+        mux(None)  # a cover ffmpeg cannot use must not cost the whole book, whose voice is already paid for
     tmp.replace(out)
     return start / 1000
+
+
+def _cover_file(cover: bytes, ext: str, work: Path):
+    """The .m4b only takes a JPEG or PNG picture. A GIF cover (EPUBs may use one) is turned into a PNG still;
+    one that cannot be read is left out (None)."""
+    src = work / f"cover.{ext}"
+    src.write_bytes(cover)
+    if ext in ("jpg", "png"):
+        return src
+    png = work / "cover.png"
+    try:
+        _run(["ffmpeg", "-nostdin", "-hide_banner", "-y", "-i", str(src), "-frames:v", "1", str(png)])
+    except B2AError:
+        return None
+    return png

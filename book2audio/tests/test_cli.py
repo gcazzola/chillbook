@@ -173,6 +173,12 @@ class EndToEnd(unittest.TestCase):
         self.assertIn("Wrote", out)
         self.assertIn("synthesized", err)
 
+    def test_the_output_folder_is_created_before_anything_is_paid_for(self):
+        out = self.dir / "new" / "sub" / "book.m4b"
+        code, _, err = run_cli(self.epub, "--backend", "fake", "-o", out)
+        self.assertEqual(code, 0, err)
+        self.assertTrue(out.exists())
+
     def test_rerun_costs_nothing_and_chapter_selection_limits_the_book(self):
         run_cli(self.epub, "--backend", "fake")
         first = len(Fake.calls)

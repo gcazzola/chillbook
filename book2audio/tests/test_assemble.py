@@ -80,6 +80,30 @@ class Assemble(unittest.TestCase):
         self.assertEqual(kinds["video"]["disposition"]["attached_pic"], 1)
         self.assertTrue(str(m4b).endswith(".m4b"))
 
+    def test_a_gif_cover_becomes_a_png_picture(self):
+        gif = self.dir / "cover.gif"
+        ffmpeg("-f", "lavfi", "-i", "color=c=blue:s=64x64", "-frames:v", "1", str(gif))
+        chapter = self.dir / "gif-ch.m4a"
+        assemble.build_chapter([self.loud], chapter)
+        m4b = self.dir / "gif.m4b"
+        assemble.build_m4b([chapter], ["One"], m4b, "Gif Book", "Ann", cover=gif.read_bytes(), cover_ext="gif",
+                           work=self.dir / "wg")
+        video = [x for x in probe(m4b, "-show_streams")["streams"] if x["codec_type"] == "video"]
+        self.assertEqual([v["codec_name"] for v in video], ["png"])
+
+    def test_a_cover_that_cannot_be_read_never_costs_the_book(self):
+        chapter = self.dir / "bad-ch.m4a"
+        assemble.build_chapter([self.loud], chapter)
+        for ext in ("jpg", "gif"):
+            m4b = self.dir / f"bad-{ext}.m4b"
+            assemble.build_m4b([chapter], ["One"], m4b, "Bad Cover", "Ann", cover=b"this is not a picture",
+                               cover_ext=ext, work=self.dir / f"wb-{ext}")
+            streams = probe(m4b, "-show_streams")["streams"]
+            kinds = [x["codec_type"] for x in streams]
+            self.assertIn("audio", kinds, ext)
+            self.assertNotIn("video", kinds, f"{ext}: no cover, but the book is there")
+            self.assertFalse((self.dir / f"bad-{ext}.part.m4b").exists())
+
     def test_m4b_without_a_cover(self):
         out = self.dir / "only.m4a"
         assemble.build_chapter([self.loud], out)
