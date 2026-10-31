@@ -14,7 +14,7 @@ import json
 import os
 from pathlib import Path
 
-from .book import B2AError
+from .book import B2AError, Cancelled
 from .chunk import chunk
 
 # Skill default for the current Opus. --llm-model picks another (e.g. claude-haiku-5-5 for a cheaper pass).
@@ -86,14 +86,26 @@ def _ask(client, model, mode, condense, text):
     return "".join(b.text for b in r.content if b.type == "text").strip() or None
 
 
+# Adapted mode: the reply must be this share of the input's length (condensed, or not).
+ADAPTED_RANGE = {True: (0.15, 1.2), False: (0.4, 2.0)}
+
+
+def max_growth(mode: str, condense: bool) -> float:
+    """The most the text can grow in the pass, from the limits a reply is checked against (see _acceptable).
+    The voice reads this text, so a voice cost worked out on the original text can be this many times too low."""
+    if mode == "adapted":
+        return ADAPTED_RANGE[bool(condense)][1]
+    return 1.25  # faithful keeps at least 90 % of the words, which allows about 22 % more
+
+
 def _acceptable(src: str, out: str, mode: str, condense: bool) -> bool:
     if mode == "faithful":
         return difflib.SequenceMatcher(None, src.split(), out.split(), autojunk=False).ratio() >= MIN_SIMILARITY
-    low, high = (0.15, 1.2) if condense else (0.4, 2.0)
+    low, high = ADAPTED_RANGE[bool(condense)]
     return low * len(src) <= len(out) <= high * len(src)
 
 
-def process(text: str, mode: str, model: str, cache_dir: Path, client, condense=False, log=print) -> str:
+def process(text: str, mode: str, model: str, cache_dir: Path, client, condense=False, log=print, cancel=None) -> str:
     cache_dir = Path(cache_dir)
     parts = []
     for seg in chunk(text, SEGMENT_CHARS):
@@ -102,12 +114,13 @@ def process(text: str, mode: str, model: str, cache_dir: Path, client, condense=
         if path.exists():
             parts.append(path.read_text(encoding="utf-8"))
             continue
+        if cancel is not None and cancel.is_set():  # Stop takes effect before the next paid request
+            raise Cancelled()
         out = _ask(client, model, mode, condense, seg)
         if out is None or not _acceptable(seg, out, mode, condense):
             log("  warning: Claude's reply was refused, cut off or too different; keeping the rule-normalized text "
-                "for this segment")
-            parts.append(seg)
-            continue
+                "for this segment (saved, so a re-run does not pay for it again)")
+            out = seg  # saved below like a good reply: the same request would only be paid for again
         cache_dir.mkdir(parents=True, exist_ok=True)
         tmp = path.with_suffix(".part")
         tmp.write_text(out, encoding="utf-8")

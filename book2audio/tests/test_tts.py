@@ -2,6 +2,7 @@
 import io
 import json
 import tempfile
+import threading
 import unittest
 import urllib.error
 from pathlib import Path
@@ -10,7 +11,7 @@ from unittest import mock
 import helpers  # noqa: F401  (sets up sys.path)
 
 from book2audio import llm, tts
-from book2audio.book import B2AError
+from book2audio.book import B2AError, Cancelled
 
 try:
     import anthropic
@@ -207,6 +208,29 @@ class ClaudePass(unittest.TestCase):
             self.assertEqual(len(client.calls), first)
             llm.process(SRC.strip(), "faithful", "claude-haiku-5-5", Path(td), client, log=print)
             self.assertGreater(len(client.calls), first, "another model is another cache entry")
+
+    def test_a_refused_reply_is_saved_so_a_rerun_does_not_pay_for_it_again(self):
+        with tempfile.TemporaryDirectory() as td:
+            client = FakeClaude("A completely different summary of something else entirely.")
+            first = llm.process(SRC.strip(), "faithful", "claude-opus-5-5", Path(td), client, log=lambda m: None)
+            calls = len(client.calls)
+            second = llm.process(SRC.strip(), "faithful", "claude-opus-5-5", Path(td), client, log=lambda m: None)
+        self.assertEqual((first, second, len(client.calls)), (SRC.strip(), SRC.strip(), calls))
+
+    def test_stop_takes_effect_before_the_next_paid_request(self):
+        stop = threading.Event()
+        client = FakeClaude(lambda text: (stop.set(), text)[1])  # the person presses Stop during the first request
+        with tempfile.TemporaryDirectory() as td, self.assertRaises(Cancelled):
+            llm.process((SRC * 20).strip(), "faithful", "claude-opus-5-5", Path(td), client, log=print, cancel=stop)
+        self.assertEqual(len(client.calls), 1, "the other segments were not sent")
+
+    def test_the_most_a_pass_can_grow_the_text_matches_the_limits_replies_are_checked_against(self):
+        self.assertEqual(llm.max_growth("adapted", False), 2.0)
+        self.assertEqual(llm.max_growth("adapted", True), 1.2)
+        self.assertEqual(llm.max_growth("faithful", False), 1.25)
+        src = "word " * 360  # 1,800 characters
+        self.assertTrue(llm._acceptable(src, "word " * 719, "adapted", False), "just under twice as long is accepted")
+        self.assertFalse(llm._acceptable(src, "word " * 721, "adapted", False), "just over twice as long is refused")
 
     def test_bad_key_is_a_clear_error(self):
         client = FakeClaude()

@@ -119,7 +119,7 @@ def prepare(picks, job: Job, llm_opts=None, log=log, progress=None, cancel=None,
             log(f"Claude pass ({llm_opts['mode']}) on chapter {number}: {ch.title}")
             body = normalize(ch.text)
             body = normalize(llm.process(body, llm_opts["mode"], llm_opts["model"], job.llm, llm_opts["client"],
-                                         llm_opts["condense"], log))
+                                         llm_opts["condense"], log, cancel))
             text = sentence_end(normalize_paragraph(ch.title)) + "\n\n" + body
         else:
             text = rule_text(ch)
